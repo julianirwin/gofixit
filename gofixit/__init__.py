@@ -9,7 +9,7 @@ Created on Sun Mar 29 12:28:35 2020
 from pathlib import Path
 import pendulum
 from datetime import timedelta
-from tinydb import TinyDB, Query
+from tinydb import TinyDB, Query, where
 from pprint import pprint as pp
 from tabulate import tabulate
 from copy import deepcopy
@@ -105,7 +105,7 @@ class Controller(object):
         )
         self.db_request.insert(request)
 
-    def list_requests(self):
+    def list_requests(self, which='all'):
         """
         Return a list of request document dicts.
 
@@ -113,13 +113,47 @@ class Controller(object):
             which (str): 'all', 'overdue', 'open', 'closed'
         """
         # The member doc_id is a unique ID
-        return self.db_request.list()
+        request_dicts = self.db_request.list()
+        if which == 'all':
+            return request_dicts
+        elif which == 'open':
+            return [r for r in request_dicts if r['status'] >= 0]
+        elif which == 'closed':
+            return [r for r in request_dicts if r['status'] < -1]
+        elif which == 'overdue':
+            now = pendulum.now()
+            return [r for r in request_dicts if now > pendulum.parse(r['due_by'])]
 
-    def list_asset_requests(self, asset_name):
-        q = Query()
-        asset = self.db_asset.search(q.name == asset_name)
-        requests = self.db_request.search(q.asset_name == asset_name)
+    def list_asset_requests(self, asset_name, which='all'):
+        """
+        List requests for a certain asset.
+
+        Args:
+            which (str): 'all', 'overdue', 'open', 'closed'
+        """
+        asset = self.db_asset.search(where('name') == asset_name)
+        if which == 'all':
+            requests = self.db_request.search(where('asset_name') == asset_name)
+        elif which == 'open':
+            requests = self.db_request.search(
+                    (where('asset_name') == asset_name) &
+                    (where('status') >= 0))
+        elif which == 'closed':
+            requests = self.db_request.search(
+                    (where('asset_name') == asset_name) &
+                    (where('status') < 0))
+        elif which == 'overdue':
+            overdue = lambda x: pendulum.now() > pendulum.parse(x)
+            requests = self.db_request.search(
+                    (where('asset_name') == asset_name) &
+                    (where('due_by').test(overdue)))
         return (asset, requests)
+
+    # def list_asset_requests(self, asset_name):
+    #     q = Query()
+    #     asset = self.db_asset.search(q.name == asset_name)
+    #     requests = self.db_request.search(q.asset_name == asset_name)
+    #     return (asset, requests)
 
     def complete_request(self, doc_id):
         """
@@ -329,6 +363,12 @@ if __name__ == "__main__":
         asset_name="The House",
         request_name="Mouse traps",
         due_by=pendulum.now().add(weeks=2),
+        recurrence_period=timedelta(weeks=4),
+    )
+    c.add_request(
+        asset_name="The House",
+        request_name="Rat traps",
+        due_by=pendulum.now(),
         recurrence_period=timedelta(weeks=4),
     )
     c.add_request(
