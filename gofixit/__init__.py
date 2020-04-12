@@ -105,7 +105,7 @@ class Controller(object):
         )
         self.db_request.insert(request)
 
-    def list_requests(self, which='all'):
+    def list_requests(self, which="all"):
         """
         Return a list of request document dicts.
 
@@ -114,39 +114,39 @@ class Controller(object):
         """
         # The member doc_id is a unique ID
         request_dicts = self.db_request.list()
-        if which == 'all':
+        if which == "all":
             return request_dicts
-        elif which == 'open':
-            return [r for r in request_dicts if r['status'] >= 0]
-        elif which == 'closed':
-            return [r for r in request_dicts if r['status'] < -1]
-        elif which == 'overdue':
+        elif which == "open":
+            return [r for r in request_dicts if r["status"] >= 0]
+        elif which == "closed":
+            return [r for r in request_dicts if r["status"] < -1]
+        elif which == "overdue":
             now = pendulum.now()
-            return [r for r in request_dicts if now > pendulum.parse(r['due_by'])]
+            return [r for r in request_dicts if now > pendulum.parse(r["due_by"])]
 
-    def list_asset_requests(self, asset_name, which='all'):
+    def list_asset_requests(self, asset_name, which="all"):
         """
         List requests for a certain asset.
 
         Args:
             which (str): 'all', 'overdue', 'open', 'closed'
         """
-        asset = self.db_asset.search(where('name') == asset_name)
-        if which == 'all':
-            requests = self.db_request.search(where('asset_name') == asset_name)
-        elif which == 'open':
+        asset = self.db_asset.search(where("name") == asset_name)
+        if which == "all":
+            requests = self.db_request.search(where("asset_name") == asset_name)
+        elif which == "open":
             requests = self.db_request.search(
-                    (where('asset_name') == asset_name) &
-                    (where('status') >= 0))
-        elif which == 'closed':
+                (where("asset_name") == asset_name) & (where("status") >= 0)
+            )
+        elif which == "closed":
             requests = self.db_request.search(
-                    (where('asset_name') == asset_name) &
-                    (where('status') < 0))
-        elif which == 'overdue':
+                (where("asset_name") == asset_name) & (where("status") < 0)
+            )
+        elif which == "overdue":
             overdue = lambda x: pendulum.now() > pendulum.parse(x)
             requests = self.db_request.search(
-                    (where('asset_name') == asset_name) &
-                    (where('due_by').test(overdue)))
+                (where("asset_name") == asset_name) & (where("due_by").test(overdue))
+            )
         return (asset, requests)
 
     # def list_asset_requests(self, asset_name):
@@ -201,11 +201,11 @@ class Controller(object):
     def view_list_requests(self):
         return self.view.list_requests(self.list_requests())
 
-    def view_list_asset_requests(self):
+    def view_list_asset_requests(self, which='all'):
         assets = [a["name"] for a in self.list_assets()]
         print("")
         for asset in assets:
-            asset, requests = self.list_asset_requests(asset)
+            asset, requests = self.list_asset_requests(asset, which)
             print("ASSET")
             self.view.list_assets(asset)
             print("REQUESTS")
