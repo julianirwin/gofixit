@@ -1,9 +1,41 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sun Mar 29 12:28:35 2020
+"""gofixit.
 
-@author: Julian
+Usage:
+    gofixit list assets
+    gofixit list requests [--which=<which> | --asset_name=<asset_name>]
+    gofixit create asset --name=<asset_name>
+    gofixit create request --name=<request_name> --asset_name=<asset_name> --due_by=<YYYY-MM-DD> [--recur_every=<weeks>]
+    gofixit interactive request
+
+Options:
+    --which=<which>             One of open, closed or overdue
+    --asset_name=<asset_name>   Asset name
+    --name=<request_name>       Request name
+"""
+
+
+
+
+
+ex_doc = """Naval Fate.
+
+Usage:
+  naval_fate ship new <name>...
+  naval_fate ship <name> move <x> <y> [--speed=<kn>]
+  naval_fate ship shoot <x> <y>
+  naval_fate mine (set|remove) <x> <y> [--moored|--drifting]
+  naval_fate -h | --help
+  naval_fate --version
+
+Options:
+  -h --help     Show this screen.
+  --version     Show version.
+  --speed=<kn>  Speed in knots [default: 10].
+  --moored      Moored (anchored) mine.
+  --drifting    Drifting mine.
+
 """
 
 from pathlib import Path
@@ -13,6 +45,7 @@ from tinydb import TinyDB, Query, where
 from pprint import pprint as pp
 from tabulate import tabulate
 from copy import deepcopy
+from docopt import docopt
 
 
 class ViewTabulate(object):
@@ -340,7 +373,8 @@ class Request(object):
 
 
 if __name__ == "__main__":
-    from datetime import timedelta
+    arguments = docopt(__doc__)
+    print(arguments)
 
     path_db_asset = Path.home() / Path(".gofixit/asset_test.json")
     path_db_request = Path.home() / Path(".gofixit/request_test.json")
