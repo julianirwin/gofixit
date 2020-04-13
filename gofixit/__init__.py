@@ -3,6 +3,8 @@
 """gofixit.
 
 Usage:
+    gofixit
+    gofixit help
     gofixit list assets
     gofixit list requests [--which=<which> | --asset_name=<asset_name>]
     gofixit create asset --name=<asset_name>
@@ -16,28 +18,6 @@ Options:
 """
 
 
-
-
-
-ex_doc = """Naval Fate.
-
-Usage:
-  naval_fate ship new <name>...
-  naval_fate ship <name> move <x> <y> [--speed=<kn>]
-  naval_fate ship shoot <x> <y>
-  naval_fate mine (set|remove) <x> <y> [--moored|--drifting]
-  naval_fate -h | --help
-  naval_fate --version
-
-Options:
-  -h --help     Show this screen.
-  --version     Show version.
-  --speed=<kn>  Speed in knots [default: 10].
-  --moored      Moored (anchored) mine.
-  --drifting    Drifting mine.
-
-"""
-
 from pathlib import Path
 import pendulum
 from datetime import timedelta
@@ -45,7 +25,92 @@ from tinydb import TinyDB, Query, where
 from pprint import pprint as pp
 from tabulate import tabulate
 from copy import deepcopy
-from docopt import docopt
+from cliar import Cliar
+
+
+def init(dbpath=None, test=False):
+    if test:
+        path_db_asset = Path.home() / Path(".gofixit/asset_test.json")
+        path_db_request = Path.home() / Path(".gofixit/request_test.json")
+
+        db_asset = TinyDB(path_db_asset)
+        db_asset.purge()
+        db_asset = GoFixItDB(db_asset)
+
+        db_request = TinyDB(path_db_request)
+        db_request.purge()
+        db_request = GoFixItDB(db_request)
+
+        c = Controller(db_asset=db_asset, db_request=db_request, view=ViewTabulate())
+        c.add_asset("The House")
+        c.add_asset("The House2")
+        # print(c.view_list_assets())
+        # print()
+        c.add_request(
+            asset_name="The House",
+            request_name="Mouse traps",
+            due_by=pendulum.now().add(weeks=2),
+            recurrence_period=timedelta(weeks=4),
+        )
+        c.add_request(
+            asset_name="The House",
+            request_name="Rat traps",
+            due_by=pendulum.now(),
+            recurrence_period=timedelta(weeks=4),
+        )
+        c.add_request(
+            asset_name="The House2",
+            request_name="Mouse traps2",
+            due_by=pendulum.now().add(weeks=2),
+            recurrence_period=timedelta(weeks=4),
+        )
+        # print(c.view_list_requests())
+        # print()
+        # c.view_create_request()
+        # c.view_list_asset_requests()
+        return c
+    else:
+        path_db_asset = Path.home() / Path(".gofixit/asset.json")
+        path_db_request = Path.home() / Path(".gofixit/request.json")
+
+        db_asset = TinyDB(path_db_asset)
+        db_asset = GoFixItDB(db_asset)
+
+        db_request = TinyDB(path_db_request)
+        db_request = GoFixItDB(db_request)
+
+        return Controller(db_asset=db_asset, db_request=db_request, view=ViewTabulate())
+
+
+class CommandList(Cliar):
+    def assets(self):
+        """List assets."""
+        c = init(dbpath=None, test=True)
+        print(c.view_list_assets())
+
+    def requests(self, asset_name="None", which="overdue"):
+        """List requests. <which> is 'all', 'open' or 'overdue'. If <asset_name>, only
+        show that assets name."""
+        c = init(dbpath=None, test=True)
+        asset_name = None if asset_name.lower() == "none" else asset_name
+        print(c.view_list_requests(asset_name, which))
+
+
+class CommandCreate(Cliar):
+    pass
+
+
+class CommandInteractive(Cliar):
+    pass
+
+
+class CommandLineInterface(Cliar):
+    list = CommandList
+    create = CommandCreate
+    interactive = CommandInteractive
+
+    def _root(self, version=False):
+        print("Welcome to gofixit.py")
 
 
 class ViewTabulate(object):
@@ -138,7 +203,7 @@ class Controller(object):
         )
         self.db_request.insert(request)
 
-    def list_requests(self, which="all"):
+    def list_requests(self, asset_name=None, which="all"):
         """
         Return a list of request document dicts.
 
@@ -146,7 +211,10 @@ class Controller(object):
             which (str): 'all', 'overdue', 'open', 'closed'
         """
         # The member doc_id is a unique ID
-        request_dicts = self.db_request.list()
+        if asset_name is None:
+            request_dicts = self.db_request.list()
+        else:
+            request_dicts = self.db_request.search(where('asset_name') == asset_name)
         if which == "all":
             return request_dicts
         elif which == "open":
@@ -231,10 +299,10 @@ class Controller(object):
     def view_list_assets(self):
         return self.view.list_assets(self.list_assets())
 
-    def view_list_requests(self):
-        return self.view.list_requests(self.list_requests())
+    def view_list_requests(self, asset_name=None, which='all'):
+        return self.view.list_requests(self.list_requests(asset_name, which))
 
-    def view_list_asset_requests(self, which='all'):
+    def view_list_asset_requests(self, which="all"):
         assets = [a["name"] for a in self.list_assets()]
         print("")
         for asset in assets:
@@ -357,64 +425,53 @@ class Request(object):
         return self.d.__str__()
 
 
-# class TestAsset(object):
-#     def test_asset_name(self):
-#         a = Asset(name="Asset0")
-#         assert a.__str__() == "{'name': 'Asset0'}"
-
-#     def test_asset_from_dict(self):
-#         kwargs = {"prop1": 1, "prop2": 2}
-#         a = Asset(name="Asset0", **kwargs)
-#         assert a.__str__() == "{'name': 'Asset0', 'prop1': 1, 'prop2': 2}"
-
-
-# class TestController(object):
-#     pass
-
-
 if __name__ == "__main__":
-    arguments = docopt(__doc__)
-    print(arguments)
+    CommandLineInterface().parse()
 
-    path_db_asset = Path.home() / Path(".gofixit/asset_test.json")
-    path_db_request = Path.home() / Path(".gofixit/request_test.json")
+# if __name__ == "__main__":
+#     arguments = docopt(__doc__)
+#     print(arguments)
 
-    db_asset = TinyDB(path_db_asset)
-    db_asset.purge()
-    db_asset = GoFixItDB(db_asset)
+#     path_db_asset = Path.home() / Path(".gofixit/asset_test.json")
+#     path_db_request = Path.home() / Path(".gofixit/request_test.json")
 
-    db_request = TinyDB(path_db_request)
-    db_request.purge()
-    db_request = GoFixItDB(db_request)
+#     db_asset = TinyDB(path_db_asset)
+#     db_asset.purge()
+#     db_asset = GoFixItDB(db_asset)
 
-    c = Controller(db_asset=db_asset, db_request=db_request, view=ViewTabulate())
-    c.add_asset("The House")
-    c.add_asset("The House2")
-    print(c.view_list_assets())
-    print()
-    due_by = pendulum.now().add(days=7)
-    c.add_request(
-        asset_name="The House",
-        request_name="Mouse traps",
-        due_by=pendulum.now().add(weeks=2),
-        recurrence_period=timedelta(weeks=4),
-    )
-    c.add_request(
-        asset_name="The House",
-        request_name="Rat traps",
-        due_by=pendulum.now(),
-        recurrence_period=timedelta(weeks=4),
-    )
-    c.add_request(
-        asset_name="The House2",
-        request_name="Mouse traps2",
-        due_by=pendulum.now().add(weeks=2),
-        recurrence_period=timedelta(weeks=4),
-    )
-    print(c.view_list_requests())
-    print()
-    # c.view_create_request()
-    c.view_list_asset_requests()
+#     db_request = TinyDB(path_db_request)
+#     db_request.purge()
+#     db_request = GoFixItDB(db_request)
+
+#     c = Controller(db_asset=db_asset, db_request=db_request, view=ViewTabulate())
+#     c.add_asset("The House")
+#     c.add_asset("The House2")
+#     print(c.view_list_assets())
+#     print()
+#     due_by = pendulum.now().add(days=7)
+#     c.add_request(
+#         asset_name="The House",
+#         request_name="Mouse traps",
+#         due_by=pendulum.now().add(weeks=2),
+#         recurrence_period=timedelta(weeks=4),
+#     )
+#     c.add_request(
+#         asset_name="The House",
+#         request_name="Rat traps",
+#         due_by=pendulum.now(),
+#         recurrence_period=timedelta(weeks=4),
+#     )
+#     c.add_request(
+#         asset_name="The House2",
+#         request_name="Mouse traps2",
+#         due_by=pendulum.now().add(weeks=2),
+#         recurrence_period=timedelta(weeks=4),
+#     )
+#     print(c.view_list_requests())
+#     print()
+#     # c.view_create_request()
+#     c.view_list_asset_requests()
+#     arguments = docopt(__doc__, 'help')
 
 # if __name__ == "__main__":
 #     path_db_asset = Path.home() / Path(".gofixit/asset.json")
