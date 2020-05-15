@@ -25,8 +25,10 @@ from tinydb import TinyDB, Query, where
 from pprint import pprint as pp
 from tabulate import tabulate
 from copy import deepcopy
-from cliar import Cliar
+from cliar import Cliar, set_help
 
+
+TEST = False
 
 def init(dbpath=None, test=False):
     if test:
@@ -85,29 +87,78 @@ def init(dbpath=None, test=False):
 class CommandList(Cliar):
     def assets(self):
         """List assets."""
-        c = init(dbpath=None, test=True)
+        c = init(dbpath=None, test=TEST)
         print(c.view_list_assets())
 
-    def requests(self, asset_name="None", which="overdue"):
-        """List requests. <which> is 'all', 'open' or 'overdue'. If <asset_name>, only
-        show that assets name."""
-        c = init(dbpath=None, test=True)
+    def requests(self, which="overdue", asset_name="None"):
+        """List requests. <which> (-w) is 'all', 'open' or 'overdue'. If <asset_name> (-a) passed, only show that assets name."""
+        c = init(dbpath=None, test=TEST)
         asset_name = None if asset_name.lower() == "none" else asset_name
         print(c.view_list_requests(asset_name, which))
 
 
+create_asset_help = {'asset_name': 'Name of new asset'}
+create_request_help = {
+        'asset_doc_id': '(int) ID of an asset, from list asset',
+        'request_name': '(str) Name of new requet',
+        'due_by': '(str) "YYYY-MM-DD"',
+        'recurrence_period': '(int) Recurrence period in weeks'
+    }
+
+
 class CommandCreate(Cliar):
-    pass
+    @set_help(create_asset_help)
+    def asset(self, asset_name):
+        """Add a new asset."""
+        c = init(dbpath=None, test=TEST)
+        c.add_asset(asset_name)
+        print("ASSETS")
+        print(c.view_list_assets())
+
+    @set_help(create_request_help)
+    def request(self, asset_doc_id, request_name, due_by, recurrence_period="None"):
+        """Add a new request."""
+        c = init(dbpath=None, test=TEST)
+        asset_doc_id = int(asset_doc_id)
+        due_by_dt = pendulum.from_format(due_by, "YYYY-MM-DD")
+        if recurrence_period.lower() == "none":
+            recurrence_period_td = None
+        else:
+            recurrence_period_td = timedelta(weeks=int(recurrence_period))
+        # import pdb; pdb.set_trace()
+        # asset_name = c.db_asset.db.get(doc_id=int(asset_doc_id))['name']
+        asset_name = c.asset_name_from_doc_id(asset_doc_id)
+        c.add_request(asset_name, request_name, due_by_dt, recurrence_period_td)
+        print(f"REQUESTS ({asset_name})")
+        c.view_list_requests(asset_name, which='all')
 
 
-class CommandInteractive(Cliar):
-    pass
+class CommandRemove(Cliar):
+    def asset(self, asset_doc_id):
+        c = init(dbpath=None, test=TEST)
+        asset_doc_id = int(asset_doc_id)
+        asset_name = c.asset_name_from_doc_id(asset_doc_id)
+        c.view_list_requests(asset_name, which='all')
+        print('Confirm remove [y/n]: ')
+        yn = input()
+        if yn.lower() == 'y':
+            c.remove_asset_and_requests(asset_doc_id)
+            print(f"Removed asset: {asset_name}")
+        else:
+            print('Exiting without removing')
+        print("ASSETS")
+        print(c.view_list_assets())
+
+    def request(self, request_doc_id):
+        c = init(dbpath=None, test=TEST)
+        c.remove_request(int(request_doc_id))
+        print(f"Removed request {request_doc_id}")
 
 
 class CommandLineInterface(Cliar):
     list = CommandList
     create = CommandCreate
-    interactive = CommandInteractive
+    remove = CommandRemove
 
     def _root(self, version=False):
         print("Welcome to gofixit.py")
@@ -178,6 +229,15 @@ class Controller(object):
     def add_asset(self, asset_name):
         asset = Asset(name=asset_name)
         self.db_asset.insert(asset)
+
+    def asset_name_from_doc_id(self, doc_id):
+        return  self.db_asset.db.get(doc_id=int(doc_id))['name']
+
+    def asset_from_doc_id(self, doc_id):
+        return self.db_asset.db.get(doc_id=int(doc_id))
+
+    def request_from_doc_id(self, doc_id):
+        return self.db_request.db.get(doc_id=int(doc_id))
 
     def list_assets(self):
         # The member doc_id is a unique ID
@@ -429,9 +489,6 @@ if __name__ == "__main__":
     CommandLineInterface().parse()
 
 # if __name__ == "__main__":
-#     arguments = docopt(__doc__)
-#     print(arguments)
-
 #     path_db_asset = Path.home() / Path(".gofixit/asset_test.json")
 #     path_db_request = Path.home() / Path(".gofixit/request_test.json")
 
@@ -471,7 +528,6 @@ if __name__ == "__main__":
 #     print()
 #     # c.view_create_request()
 #     c.view_list_asset_requests()
-#     arguments = docopt(__doc__, 'help')
 
 # if __name__ == "__main__":
 #     path_db_asset = Path.home() / Path(".gofixit/asset.json")
