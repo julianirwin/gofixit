@@ -125,15 +125,14 @@ class CommandCreate(Cliar):
             recurrence_period_td = None
         else:
             recurrence_period_td = timedelta(weeks=int(recurrence_period))
-        # import pdb; pdb.set_trace()
-        # asset_name = c.db_asset.db.get(doc_id=int(asset_doc_id))['name']
         asset_name = c.asset_name_from_doc_id(asset_doc_id)
         c.add_request(asset_name, request_name, due_by_dt, recurrence_period_td)
-        print(f"REQUESTS ({asset_name})")
+        print(f"REQUESTS - ({asset_name})")
         c.view_list_requests(asset_name, which='all')
 
 
 class CommandRemove(Cliar):
+    """Remove (delete) assets or requests."""
     def asset(self, asset_doc_id):
         c = init(dbpath=None, test=TEST)
         asset_doc_id = int(asset_doc_id)
@@ -155,6 +154,10 @@ class CommandRemove(Cliar):
         print(f"Removed request {request_doc_id}")
 
 
+
+complete_help = {'request_doc_id': '(int) document id of request.'}
+
+
 class CommandLineInterface(Cliar):
     list = CommandList
     create = CommandCreate
@@ -163,6 +166,21 @@ class CommandLineInterface(Cliar):
     def _root(self, version=False):
         print("Welcome to gofixit.py")
 
+    @set_help(complete_help)
+    def complete(self, request_doc_id):
+        """Mark request as complete. If it's recurring, due date will be incremented."""
+        c = init(dbpath=None, test=TEST)
+        asset_name = c.asset_doc_id_from_request_doc_id(request_doc_id)
+        c.complete_request(int(request_doc_id))
+        c.view_list_requests(asset_name, which='all')
+
+    @set_help(complete_help)
+    def close(self, request_doc_id):
+            """Mark request as complete. If it's recurring, due date will be incremented."""
+            c = init(dbpath=None, test=TEST)
+            asset_name = c.asset_doc_id_from_request_doc_id(request_doc_id)
+            c.close_request(int(request_doc_id))
+            c.view_list_requests(asset_name, which='all')
 
 class ViewTabulate(object):
     def __init__(self, max_col_width=25):
@@ -231,7 +249,15 @@ class Controller(object):
         self.db_asset.insert(asset)
 
     def asset_name_from_doc_id(self, doc_id):
-        return  self.db_asset.db.get(doc_id=int(doc_id))['name']
+        return self.db_asset.db.get(doc_id=int(doc_id))['name']
+
+    def asset_name_from_request_doc_id(self, doc_id):
+        request = self.request_from_doc_id(doc_id)
+        return request['asset_name']
+
+    def asset_doc_id_from_request_doc_id(self, doc_id):
+        request = self.request_from_doc_id(doc_id)
+        return request['doc_id']
 
     def asset_from_doc_id(self, doc_id):
         return self.db_asset.db.get(doc_id=int(doc_id))
@@ -401,19 +427,15 @@ class GoFixItDB(object):
             doc_dict (dict): dict form of the Asset or Request object
         """
         doc_dict = doc_object.d
-        # d = dict(typeid=typeid, **doc_dict)
         self.db.insert(doc_dict)
 
     def search(self, *args, **kwargs):
+        """
+        Wraps tinydb search(). Used like:
+            >>> User = Query()
+            >>> db.search(User.name == 'John')
+        """
         return self._add_doc_ids_to_docs(self.db.search(*args, **kwargs))
-
-    # def list(self):
-    #     """
-    #     List all docs of typeid ('asset' or 'request')
-    #     """
-    #     item = Query()
-    #     docs = self.db_backend.search(item.typeid == typeid)
-    #     return self._add_doc_ids_to_docs(docs)
 
     def list(self):
         return self._add_doc_ids_to_docs(self.db.all())
@@ -422,7 +444,11 @@ class GoFixItDB(object):
         self.db.remove(doc_ids=[doc_id])
 
     def get_by_id(self, doc_id):
-        return self._add_doc_ids_to_docs([self.db.get(doc_id=doc_id)])
+        doc = self.db.get(doc_id=doc_id)
+        if doc is not None:
+            return self._add_doc_ids_to_docs([doc])
+        else:
+            raise ValueError(f'Document id {doc_id} not found')
 
     def _add_doc_ids_to_docs(self, docs):
         return [dict(doc_id=doc.doc_id, **doc) for doc in docs]
