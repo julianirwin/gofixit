@@ -196,13 +196,19 @@ class ViewTabulate(object):
                     d[k] = v[: self.max_col_width] + "..."
         return copy
 
-    def list_assets(self, table, **kwargs):
+    def list_assets(self, table, show=True, **kwargs):
         """Print to console."""
-        print(tabulate(self._crop_string_lengths(table), headers="keys", **kwargs))
+        t = tabulate(self._crop_string_lengths(table), headers="keys", **kwargs)
+        if show:
+            print(t)
+        return t
 
-    def list_requests(self, table, **kwargs):
+    def list_requests(self, table, show=True, **kwargs):
         """Print to console."""
-        print(tabulate(self._crop_string_lengths(table), headers="keys", **kwargs))
+        t = tabulate(self._crop_string_lengths(table), headers="keys", **kwargs)
+        if show:
+            print(t)
+        return t
 
     def create_request(self):
         """
@@ -336,12 +342,6 @@ class Controller(object):
             )
         return (asset, requests)
 
-    # def list_asset_requests(self, asset_name):
-    #     q = Query()
-    #     asset = self.db_asset.search(q.name == asset_name)
-    #     requests = self.db_request.search(q.asset_name == asset_name)
-    #     return (asset, requests)
-
     def complete_request(self, doc_id):
         """
         Mark request as complete (status 1).
@@ -382,21 +382,21 @@ class Controller(object):
     def view_list_all(self):
         pass
 
-    def view_list_assets(self):
-        return self.view.list_assets(self.list_assets())
+    def view_list_assets(self, **kwargs):
+        return self.view.list_assets(self.list_assets(), **kwargs)
 
-    def view_list_requests(self, asset_name=None, which='all'):
-        return self.view.list_requests(self.list_requests(asset_name, which))
+    def view_list_requests(self, asset_name=None, which='all', **kwargs):
+        return self.view.list_requests(self.list_requests(asset_name, which), **kwargs)
 
-    def view_list_asset_requests(self, which="all"):
+    def view_list_asset_requests(self, which="all", **kwargs):
         assets = [a["name"] for a in self.list_assets()]
         print("")
         for asset in assets:
             asset, requests = self.list_asset_requests(asset, which)
             print("ASSET")
-            self.view.list_assets(asset)
+            self.view.list_assets(asset, **kwargs)
             print("REQUESTS")
-            self.view.list_requests(requests, tablefmt="fancy_grid")
+            self.view.list_requests(requests, **kwargs)
             print("")
 
     def view_create_request(self):
