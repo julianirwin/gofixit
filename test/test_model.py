@@ -6,8 +6,9 @@ Created on Sun Jun 28 20:52:21 2020
 @author: Julian
 """
 
-from gofixit import Asset, Request
-
+from gofixit import Asset, Request, AssetTable
+from tinydb import TinyDB, Query
+import pytest
 
 class TestAsset():
     def test_create_asset(self):

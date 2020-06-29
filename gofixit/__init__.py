@@ -618,11 +618,32 @@ class Request(Model):
 
 
 class Table(metaclass=abc.ABCMeta):
-    @abc.abstractproperty
+    def __init__(self, db: TinyDB, model_name: str):
+        self._db = db
+        self.model_name = 'model_name'
+
+    @property
     def db(self) -> TinyDB:
-        pass
+        return self._db
+
+    @property
+    def model_name(self) -> TinyDB:
+        return self._model_name
+
+    def insert(self, asset):
+        self.db.insert(asset.to_dict())
 
 
+class AssetTable(Table):
+    def __init__(self, db: TinyDB):
+        self._db = db
+        self._model_name = 'asset'
+
+
+class RequestTable(Table):
+    def __init__(self, db: TinyDB):
+        self._db = db
+        self._model_name = 'request'
 
 
 def get_unique_id(model: Model):
