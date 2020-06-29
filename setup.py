@@ -11,11 +11,8 @@ setup(name='gofixit',
       include_package_data=True,
       zip_safe=False,
       install_requires=['tinydb'],
-      setup_requires=[],
-      extras_require={
-          'test': [],
-      },
-      test_suite = '',
+      setup_requires=['pytest'],
+      test_suite = 'pytest',
       entry_points = {
           # 'console_scripts': ['bpl4_quickplot=batchplotlib4.bpl4_quickplot:main'],
           # 'console_scripts': ['hloopy=hloopy.cli:main'],
