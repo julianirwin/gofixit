@@ -620,7 +620,7 @@ class Request(Model):
 class Table(metaclass=abc.ABCMeta):
     def __init__(self, db: TinyDB, model_name: str):
         self._db = db
-        self.model_name = 'model_name'
+        self.model_name = "model_name"
 
     @property
     def db(self) -> TinyDB:
@@ -633,17 +633,27 @@ class Table(metaclass=abc.ABCMeta):
     def insert(self, asset):
         self.db.insert(asset.to_dict())
 
+    def update(self, fields, id):
+        model = Query()
+        right_model_name = model.model_name == self.model_name
+        right_id = model.id == id
+        self.db.update(fields, right_model_name & right_id)
+
+    # def all(self):
+    #     model = Query()
+    #     return db.
+
 
 class AssetTable(Table):
     def __init__(self, db: TinyDB):
         self._db = db
-        self._model_name = 'asset'
+        self._model_name = "asset"
 
 
 class RequestTable(Table):
     def __init__(self, db: TinyDB):
         self._db = db
-        self._model_name = 'request'
+        self._model_name = "request"
 
 
 def get_unique_id(model: Model):
