@@ -78,6 +78,17 @@ def db_with_simple_asset():
     db.purge()
 
 
+@pytest.fixture
+def db_with_simple_asset_and_request():
+    db = get_db()
+    db.purge()
+    asset_table = AssetTable(db)
+    asset_table.insert(simple_asset())
+    asset_table.insert(simple_request())
+    yield db
+    db.purge()
+
+
 class TestAssetTable:
     def test_insert(self, empty_db, simple_asset):
         asset_table = AssetTable(empty_db)
@@ -86,7 +97,16 @@ class TestAssetTable:
 
     def test_update(self, db_with_simple_asset, simple_asset):
         asset_table = AssetTable(db_with_simple_asset)
-        asset_table.update({'name': 'the house'}, simple_asset.id)
+        asset_table.update({"name": "the house"}, simple_asset.id)
         updated_asset_dict = simple_asset.to_dict()
-        updated_asset_dict.update(name='the house')
+        updated_asset_dict.update(name="the house")
         assert db_with_simple_asset.all()[0] == updated_asset_dict
+
+    def test_all(self, db_with_simple_asset_and_request, simple_asset):
+        asset_table = AssetTable(db_with_simple_asset_and_request)
+        assert asset_table.all()[0] == simple_asset.to_dict()
+
+    def test_remove(self, db_with_simple_asset, simple_asset):
+        asset_table = AssetTable(db_with_simple_asset)
+        asset_table.remove(simple_asset.id)
+        assert asset_table.all() == []

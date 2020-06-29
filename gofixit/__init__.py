@@ -579,10 +579,10 @@ class Request(Model):
     def to_dict(self) -> dict:
         d = dict(
             model_name=self.model_name,
-            id=get_unique_id(),
+            id=self.id,
             asset_id=self.asset_id,
             name=self.name,
-            due_date=self.due_date,
+            due_date_iso8601=self.due_date_iso8601,
             recurrence_period_days=self.recurrence_period_days,
             comment=self.comment,
         )
@@ -634,14 +634,23 @@ class Table(metaclass=abc.ABCMeta):
         self.db.insert(asset.to_dict())
 
     def update(self, fields, id):
+        self.db.update(fields, self._right_model_name_and_matching_id(id))
+
+    def all(self):
+        return self.db.search(self._right_model_name())
+
+    def remove(self, id):
+        self.db.remove(self._right_model_name_and_matching_id(id))
+
+    def _right_model_name_and_matching_id(self, id):
         model = Query()
         right_model_name = model.model_name == self.model_name
-        right_id = model.id == id
-        self.db.update(fields, right_model_name & right_id)
+        matching_id = model.id == id
+        return right_model_name & matching_id
 
-    # def all(self):
-    #     model = Query()
-    #     return db.
+    def _right_model_name(self):
+        model = Query()
+        return model.model_name == self.model_name
 
 
 class AssetTable(Table):
